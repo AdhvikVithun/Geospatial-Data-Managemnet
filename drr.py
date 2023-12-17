@@ -92,20 +92,21 @@ def explore_and_find_duplicates(base_path):
             file_paths = [os.path.join(root, file) for file in files]
             process_files(root, file_paths)
 
-    def explore_compressed_folder(folder_path):
+    def explore_folders_in_path(folder_path):
         nonlocal unique_file_types
-        for file in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, file)
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
 
-            if file.endswith(('.zip', '.tar', '.gz', '.bz2', '.rar', '.7z')):
-                print(f"Exploring contents of: {file_path}")
-                extract_folder = os.path.join(folder_path, os.path.splitext(file)[0])
-                extract_archive(file_path, extract_folder)
-                process_folder(extract_folder)
+                if file.endswith(('.zip', '.tar', '.gz', '.bz2', '.rar', '.7z')):
+                    print(f"Exploring contents of: {file_path}")
+                    extract_folder = os.path.join(root, os.path.splitext(file)[0])
+                    extract_archive(file_path, extract_folder)
+                    process_folder(extract_folder)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
-            executor.submit(explore_compressed_folder, base_path),
+            executor.submit(explore_folders_in_path, base_path),
             executor.submit(process_folder, base_path)
         ]
 
@@ -149,35 +150,35 @@ def explore_and_find_duplicates(base_path):
         if current_fuzzy_duplicates:
             fuzzy_duplicates[file_path1] = current_fuzzy_duplicates
 
-    # Create separate DataFrames for exactly same and slightly similar files
-    columns = ['File1', 'File2', 'ContentMatch', 'File1Name', 'File2Name']
+    # Create separate DataFrames for exactly the same and slightly similar files
+    columns = ['File1', 'File1Path', 'File2', 'File2Path', 'ContentMatch']
     df_exact = pd.DataFrame(columns=columns)
     df_fuzzy = pd.DataFrame(columns=columns)
 
     # Populate DataFrames
     for file_path1, duplicate_addresses in exact_duplicates.items():
+        hash1 = hash_file(file_path1)
         for file_path2 in duplicate_addresses:
-            hash1 = hash_file(file_path1)
             hash2 = hash_file(file_path2)
             content_match = hash1 == hash2
             df_exact = pd.concat([df_exact, pd.DataFrame({
-                'File1': [os.path.basename(file_path1)] * len(duplicate_addresses),
-                'File2': [os.path.basename(file_path2)] * len(duplicate_addresses),
-                'ContentMatch': [content_match] * len(duplicate_addresses),
-                'File1Name': [os.path.basename(file_path1)] * len(duplicate_addresses),
-                'File2Name': [os.path.basename(file_path2)] * len(duplicate_addresses),
+                'File1': [os.path.basename(file_path1)],
+                'File1Path': [file_path1],
+                'File2': [os.path.basename(file_path2)],
+                'File2Path': [file_path2],
+                'ContentMatch': [content_match],
             })], ignore_index=True)
 
     for file_path1, duplicate_addresses in fuzzy_duplicates.items():
+        hash1 = hash_file(file_path1)
         for file_path2 in duplicate_addresses:
-            hash1 = hash_file(file_path1)
             hash2 = hash_file(file_path2)
             content_match = hash1 == hash2
             df_fuzzy = pd.concat([df_fuzzy, pd.DataFrame({
-                'File1Name': [os.path.basename(file_path1)],
                 'File1': [os.path.basename(file_path1)],
-                'File2Name': [os.path.basename(file_path2)],
+                'File1Path': [file_path1],
                 'File2': [os.path.basename(file_path2)],
+                'File2Path': [file_path2],
                 'ContentMatch': [content_match],
             })], ignore_index=True)
 
@@ -192,7 +193,7 @@ def explore_and_find_duplicates(base_path):
     if not df_exact.empty:
         print(df_exact)
     else:
-        print("No exactly same files found.")
+        print("No exactly the same files found.")
 
     # Print slightly similar files
     print("\nSlightly Similar Files:")
@@ -210,24 +211,24 @@ def explore_and_find_duplicates(base_path):
     df_fuzzy.to_excel(excel_fuzzy_filename, index=False)
 
     # Create Siamese Dataset
-    siamese_dataset = pd.DataFrame(columns=['File1Name', 'File2Name', 'HashFile1', 'HashFile2', 'Match'])
+    siamese_dataset = pd.DataFrame(columns=['File1Name', 'File1', 'File2Name', 'File2', 'HashFile1', 'HashFile2', 'Match'])
 
     for file_path1, duplicate_addresses in exact_duplicates.items():
+        hash1 = hash_file(file_path1)
         for file_path2 in duplicate_addresses:
-            hash1 = hash_file(file_path1)
             hash2 = hash_file(file_path2)
             content_match = hash1 == hash2
             siamese_dataset = pd.concat([siamese_dataset, pd.DataFrame({
-                'File1Name': [os.path.basename(file_path1)] * len(duplicate_addresses),
-                'File2Name': [os.path.basename(file_path2)] * len(duplicate_addresses),
-                'HashFile1': [hash1] * len(duplicate_addresses),
-                'HashFile2': [hash2] * len(duplicate_addresses),
-                'Match': [int(content_match)] * len(duplicate_addresses),
+                'File1Name': [os.path.basename(file_path1)],
+                'File2Name': [os.path.basename(file_path2)],
+                'HashFile1': [hash1],
+                'HashFile2': [hash2],
+                'Match': [int(content_match)],
             })], ignore_index=True)
 
     for file_path1, duplicate_addresses in fuzzy_duplicates.items():
+        hash1 = hash_file(file_path1)
         for file_path2 in duplicate_addresses:
-            hash1 = hash_file(file_path1)
             hash2 = hash_file(file_path2)
             content_match = hash1 == hash2
             siamese_dataset = pd.concat([siamese_dataset, pd.DataFrame({
