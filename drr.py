@@ -40,6 +40,9 @@ def extract_archive(archive_path, extract_folder):
     elif extension.lower() == '.zip':
         with zipfile.ZipFile(archive_path, 'r') as zip_ref:
             zip_ref.extractall(extract_folder)
+    elif extension.lower() == '.gz':
+        with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_folder)
 
 def hash_file(file_path):
     hasher = hashlib.md5()
@@ -53,11 +56,12 @@ def explore_and_find_duplicates(base_path):
     all_file_info = {}
     exact_duplicates = defaultdict(set)
     fuzzy_duplicates = defaultdict(set)
-    metadata_info = []  # List to store metadata information
+    metadata_info = set()  # Use a set to store unique metadata information
     lock = threading.Lock()
 
     def process_files(folder_name, file_paths):
         local_unique_file_types = {}
+        local_metadata_info = set()  # Store metadata information for this run
         for file_path in file_paths:
             if is_considered_file(file_path):
                 file_type, file_size, mime_type, mime_encoding = get_file_info(file_path)
@@ -72,14 +76,7 @@ def explore_and_find_duplicates(base_path):
                 all_file_info[file_path]['size'] += file_size
 
                 # Collect metadata information
-                metadata_info.append({
-                    'File': file_path,
-                    'File Name': os.path.basename(file_path),
-                    'File Type': file_type,
-                    'File Size': convert_size(file_size),
-                    'MIME Type': mime_type,
-                    'MIME Encoding': mime_encoding
-                })
+                local_metadata_info.add((file_path, os.path.basename(file_path), file_type, convert_size(file_size), mime_type, mime_encoding))
 
         with lock:
             for file_path, file_info in local_unique_file_types.items():
@@ -87,6 +84,10 @@ def explore_and_find_duplicates(base_path):
                     unique_file_types[file_path] = {'types': set(), 'size': 0}
                 unique_file_types[file_path]['types'].update(file_info['types'])
                 unique_file_types[file_path]['size'] += file_info['size']
+
+        # Update the global metadata_info with local_metadata_info
+        with lock:
+            metadata_info.update(local_metadata_info)
 
     def process_folder(folder_path):
         nonlocal unique_file_types
@@ -103,7 +104,11 @@ def explore_and_find_duplicates(base_path):
                 print(f"Exploring contents of: {file_path}")
                 extract_folder = os.path.join(folder_path, os.path.splitext(file)[0])
                 extract_archive(file_path, extract_folder)
+                # Now, process the contents of the extracted folder
                 process_folder(extract_folder)
+            else:
+                # If it's not a compressed file, process it directly
+                process_folder(file_path)
 
     # Use maximum number of threads
     num_threads = min(multiprocessing.cpu_count() * 2, 32)
@@ -191,7 +196,7 @@ def explore_and_find_duplicates(base_path):
             })], ignore_index=True)
 
     # Print metadata information
-    metadata_df = pd.DataFrame(metadata_info)
+    metadata_df = pd.DataFrame(metadata_info, columns=['File', 'File Name', 'File Type', 'File Size', 'MIME Type', 'MIME Encoding'])
     metadata_excel_filename = "metadata.xlsx"
     metadata_df.to_excel(metadata_excel_filename, index=False)
     print(f"\nMetadata DataFrame saved to {metadata_excel_filename}")
@@ -254,8 +259,10 @@ def explore_and_find_duplicates(base_path):
     print(f"\nSiamese Dataset saved to {siamese_dataset_excel_filename}")
 
 if __name__ == "__main__":
-    base_path = r"D:\\adhvik\\adh\\Hackathon\\space hack\\Data RR\\dataset1"
-
+    base_path = r"D:\\adhvik\\adh\\Hackathon\\space hack\\top12 data\\topic12\\dataset1"
+    #D:\\adhvik\\adh\\Hackathon\\space hack\\top12 data\\topic12\\dataset1
+    #D:\\adhvik\\adh\\Hackathon\\space hack\\Data RR\\dataset1
+    #C:\\Users\\prath\\Downloads
     # Start the timer
     start_time = time.time()
     print("Timer started")
