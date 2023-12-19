@@ -112,7 +112,7 @@ def explore_and_find_duplicates(base_path):
 
     # Use maximum number of threads
     num_threads = min(multiprocessing.cpu_count() * 2, 32)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = [
             executor.submit(explore_compressed_folder, base_path),
             executor.submit(process_folder, base_path)
