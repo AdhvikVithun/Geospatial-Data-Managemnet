@@ -10,6 +10,7 @@ import pandas as pd
 import mimetypes
 import time
 import multiprocessing
+import matplotlib.pyplot as plt
 
 def fuzzy_match(file_name1, file_name2, threshold):
     return fuzz.ratio(file_name1, file_name2) > threshold
@@ -52,6 +53,7 @@ def hash_file(file_path):
     return hasher.hexdigest()
 
 def explore_and_find_duplicates(base_path):
+    folder_times = defaultdict(float)  # To store time taken for each folder
     unique_file_types = defaultdict(lambda: {'types': set(), 'size': 0})
     all_file_info = {}
     exact_duplicates = defaultdict(set)
@@ -64,6 +66,7 @@ def explore_and_find_duplicates(base_path):
         local_metadata_info = set()  # Store metadata information for this run
         for file_path in file_paths:
             if is_considered_file(file_path):
+                start_time = time.time()  # Record start time for each file
                 file_type, file_size, mime_type, mime_encoding = get_file_info(file_path)
                 if file_path not in local_unique_file_types:
                     local_unique_file_types[file_path] = {'types': set(), 'size': 0}
@@ -78,6 +81,10 @@ def explore_and_find_duplicates(base_path):
                 # Collect metadata information
                 local_metadata_info.add((file_path, os.path.basename(file_path), file_type, convert_size(file_size), mime_type, mime_encoding))
 
+                end_time = time.time()  # Record end time for each file
+                elapsed_time = end_time - start_time
+                folder_times[folder_name] += elapsed_time
+
         with lock:
             for file_path, file_info in local_unique_file_types.items():
                 if file_path not in unique_file_types:
@@ -91,9 +98,14 @@ def explore_and_find_duplicates(base_path):
 
     def process_folder(folder_path):
         nonlocal unique_file_types
+        start_time = time.time()  # Record start time for each folder
         for root, _, files in os.walk(folder_path):
             file_paths = [os.path.join(root, file) for file in files]
-            process_files(root, file_paths)
+            process_files(os.path.basename(root), file_paths)
+
+        end_time = time.time()  # Record end time for each folder
+        elapsed_time = end_time - start_time
+        folder_times[os.path.basename(folder_path)] = elapsed_time
 
     def explore_compressed_folder(folder_path):
         nonlocal unique_file_types
@@ -252,11 +264,37 @@ def explore_and_find_duplicates(base_path):
                 'Match': [int(content_match)],
             })], ignore_index=True)
 
+
     siamese_dataset.to_excel(siamese_dataset_excel_filename, index=False)
 
     print(f"\nExactly Same Files DataFrame saved to {excel_exact_filename}")
     print(f"\nSlightly Similar Files DataFrame saved to {excel_fuzzy_filename}")
     print(f"\nSiamese Dataset saved to {siamese_dataset_excel_filename}")
+
+    end_time2 = time.time()
+    elapsed_time2 = end_time2 - start_time2
+
+
+    # Create a bar graph for the time taken for each folder
+    folder_names = list(folder_times.keys())
+    times = list(folder_times.values())
+
+
+    plt.figure(figsize=(15, 8))
+    plt.bar(folder_names, times, color='blue')
+    plt.title(f'Time Taken for Each Folder and overall time taken is : {elapsed_time2}')
+    plt.xlabel('Folder Name')
+    plt.ylabel('Time (seconds)')
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+    plt.show()
+
+    # Calculate the overall elapsed time
+    end_time1 = time.time()
+    elapsed_time1 = end_time1 - start_time1
+
+    # Print the overall elapsed time
+    print(f"\nTotal execution time: {elapsed_time1} seconds")
 
 if __name__ == "__main__":
     base_path = r"D:\\adhvik\\adh\\Hackathon\\space hack\\top12 data\\topic12\\dataset1"
@@ -264,13 +302,7 @@ if __name__ == "__main__":
     #D:\\adhvik\\adh\\Hackathon\\space hack\\Data RR\\dataset1
     #C:\\Users\\prath\\Downloads
     # Start the timer
-    start_time = time.time()
+    start_time1 = time.time()
+    start_time2 = time.time()
     print("Timer started")
     explore_and_find_duplicates(base_path)
-
-    # Calculate the elapsed time
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-
-    # Print the elapsed time
-    print(f"\nTotal execution time: {elapsed_time} seconds")
