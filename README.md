@@ -55,7 +55,21 @@ Results Display:
 
 Streamlit components (st.title, st.text_input, st.button, st.text, st.dataframe, st.pyplot) are used to display results and create interactive visualizations.
 The exactly same and slightly similar files, along with metadata information, are presented in a tabular format.
-A bar chart is created using Matplotlib and displayed to visualize the processing time for each folder with and without parallel processing.
+A bar chart is created using Matplotlib and displayed to visualizethe processing time for each folder with and without parallel processing.
+
+![front](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/60d9cb60-9d02-4809-b6c3-f4cb08a889d3)
+
+![Part 1](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/8affc244-29ac-454c-8f17-290108e14f2c)
+
+![Part 2](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/a597ad58-ab9c-4567-a673-109975f489b9)
+
+
+
+Time: 
+
+
+![Time ver 2](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/807326e8-2a2b-4eeb-8ecc-d28adcb26f0d)
+
 
 Notes for GitHub:
 
