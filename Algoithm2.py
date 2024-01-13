@@ -297,7 +297,7 @@ def explore_and_find_duplicates(base_path):
     print(f"\nTotal execution time: {elapsed_time1} seconds")
 
 if __name__ == "__main__":
-    base_path = r"D:\adhvik\adh\Hackathon\space hack\finals data\Topic-1\Geospatial Data Mangement"
+    base_path = r"D:\adhvik\adh\Hackathon\space hack\finals data"
     #D:\adhvik\adh\Hackathon\space hack\Data RR\data Set\topic12\dataset1
     #D:\\adhvik\\adh\\Hackathon\\space hack\\Data RR\\dataset1
     #C:\\Users\\prath\\Downloads
