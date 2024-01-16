@@ -246,22 +246,8 @@ def explore_and_find_duplicates(base_path):
     end_time2 = time.time()
     elapsed_time2 = end_time2 - start_time2
 
-    folder_names = list(folder_times.keys())
-    times = list(folder_times.values())
 
-    plt.figure(figsize=(15, 8))
-    plt.bar(folder_names, times, color='blue')
-    plt.title(f'Time Taken for Each Folder and overall time taken is : {elapsed_time2}')
-    plt.xlabel('Folder Name')
-    plt.ylabel('Time (seconds)')
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    plt.show()
-
-    end_time1 = time.time()
-    elapsed_time1 = end_time1 - start_time1
-
-    print(f"\nTotal execution time: {elapsed_time1} seconds")
+    print(f"\nTotal execution time: {elapsed_time2} seconds")
 
 if __name__ == "__main__":
     base_path = r"C:\Users\prath\Downloads"

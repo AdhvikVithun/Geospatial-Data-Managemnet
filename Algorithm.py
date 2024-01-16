@@ -240,71 +240,19 @@ def explore_and_find_duplicates(base_path):
     # Save the DataFrames to Excel files
     excel_exact_filename = "exact_duplicates.xlsx"
     excel_fuzzy_filename = "fuzzy_duplicates.xlsx"
-    siamese_dataset_excel_filename = "siamese_dataset.xlsx"
 
     df_exact.to_excel(excel_exact_filename, index=False)
     df_fuzzy.to_excel(excel_fuzzy_filename, index=False)
 
-    # Create Siamese Dataset
-    siamese_dataset = pd.DataFrame(columns=['File1Name', 'File2Name', 'HashFile1', 'HashFile2', 'Match'])
-
-    for file_path1, duplicate_addresses in exact_duplicates.items():
-        for file_path2 in duplicate_addresses:
-            hash1 = all_file_info_hashes[file_path1]
-            hash2 = all_file_info_hashes[file_path2]
-            content_match = hash1 == hash2
-            siamese_dataset = pd.concat([siamese_dataset, pd.DataFrame({
-                'File1Name': [os.path.basename(file_path1)] * len(duplicate_addresses),
-                'File2Name': [os.path.basename(file_path2)] * len(duplicate_addresses),
-                'HashFile1': [hash1] * len(duplicate_addresses),
-                'HashFile2': [hash2] * len(duplicate_addresses),
-                'Match': [int(content_match)] * len(duplicate_addresses),
-            })], ignore_index=True)
-
-    for file_path1, duplicate_addresses in fuzzy_duplicates.items():
-        for file_path2 in duplicate_addresses:
-            hash1 = all_file_info_hashes[file_path1]
-            hash2 = all_file_info_hashes[file_path2]
-            content_match = hash1 == hash2
-            siamese_dataset = pd.concat([siamese_dataset, pd.DataFrame({
-                'File1Name': [os.path.basename(file_path1)],
-                'File2Name': [os.path.basename(file_path2)],
-                'HashFile1': [hash1],
-                'HashFile2': [hash2],
-                'Match': [int(content_match)],
-            })], ignore_index=True)
-
-
-    siamese_dataset.to_excel(siamese_dataset_excel_filename, index=False)
 
     print(f"\nExactly Same Files DataFrame saved to {excel_exact_filename}")
     print(f"\nSlightly Similar Files DataFrame saved to {excel_fuzzy_filename}")
-    print(f"\nSiamese Dataset saved to {siamese_dataset_excel_filename}")
 
     end_time2 = time.time()
     elapsed_time2 = end_time2 - start_time2
  
-
-    # Create a bar graph for the time taken for each folder
-    folder_names = list(folder_times.keys())
-    times = list(folder_times.values())
-
-
-    plt.figure(figsize=(15, 8))
-    plt.bar(folder_names, times, color='blue')
-    plt.title(f'Time Taken for Each Folder and overall time taken is : {elapsed_time2}')
-    plt.xlabel('Folder Name')
-    plt.ylabel('Time (seconds)')
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    plt.show()
-
-    # Calculate the overall elapsed time
-    end_time1 = time.time()
-    elapsed_time1 = end_time1 - start_time1
-
     # Print the overall elapsed time
-    print(f"\nTotal execution time: {elapsed_time1} seconds")
+    print(f"\nTotal execution time: {elapsed_time2} seconds")
 
 if __name__ == "__main__":
     base_path = r"C:\Users\prath\Downloads"
@@ -313,7 +261,6 @@ if __name__ == "__main__":
     #D:\adhvik\adh\Hackathon\space hack\finals data\Topic-1\Geospatial Data Mangement
     #D:\adhvik\adh\Hackathon\space hack\siamese data lulc\Sen-2 LULC\train_images\train
     # Start the timer
-    start_time1 = time.time()
     start_time2 = time.time()
     print("Timer started")
     explore_and_find_duplicates(base_path)
