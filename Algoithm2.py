@@ -11,7 +11,6 @@ import mimetypes
 import time
 import multiprocessing
 import matplotlib.pyplot as plt
-import geopandas as gpd
 
 def fuzzy_match(file_name1, file_name2, threshold):
     return fuzz.ratio(file_name1, file_name2) > threshold
@@ -53,80 +52,79 @@ def hash_file(file_path):
             hasher.update(chunk)
     return hasher.hexdigest()
 
-def read_geospatial_data(file_path):
-    if file_path.lower().endswith(('.shp', '.geojson', '.kml')):
-        gdf = gpd.read_file(file_path)
-        return gdf
+def find_fuzzy_duplicates(file_info_pair):
+    fuzzy_duplicates = set()
+    file_path1, info1, file_path2, info2 = file_info_pair
 
-def ingest_geospatial_data(file_path):
-    gdf = read_geospatial_data(file_path)
-    return gdf
+    if (
+        file_path1 != file_path2 and
+        fuzzy_match(os.path.basename(file_path1), os.path.basename(file_path2), 99) and
+        info1['size'] == info2['size']
+    ):
+        fuzzy_duplicates.add((file_path1, file_path2))
 
-def extract_geospatial_metadata(gdf):
-    metadata = {
-        'file_type': 'geospatial',
-        'geometry_type': gdf.geometry.type.iloc[0],
-    }
-    return metadata
+    return fuzzy_duplicates
 
-def classify_geospatial_data(gdf):
-    return gdf.geometry.type.iloc[0]
+def process_fuzzy_duplicates(all_file_info):
+    processed_files = set()
+    fuzzy_duplicates = defaultdict(set)
 
-def ingest_non_geospatial_data(file_path):
-    # Placeholder for handling non-geospatial data
-    pass
+    file_info_pairs = [(file_path1, info1, file_path2, info2)
+                       for file_path1, info1 in all_file_info.items()
+                       for file_path2, info2 in all_file_info.items()
+                       if file_path1 not in processed_files]
 
-def extract_non_geospatial_metadata(file_path):
-    # Placeholder for handling non-geospatial data
-    pass
+    # Use maximum number of threads
+    num_threads = min(multiprocessing.cpu_count() * 2, 32)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        # Execute the fuzzy matching in parallel
+        fuzzy_results = list(executor.map(find_fuzzy_duplicates, file_info_pairs))
 
-def classify_non_geospatial_data(file_path):
-    # Placeholder for handling non-geospatial data
-    pass
+    # Merge the results from different threads
+    for result_set in fuzzy_results:
+        for file_pair in result_set:
+            fuzzy_duplicates[file_pair[0]].add(file_pair[1])
+            fuzzy_duplicates[file_pair[1]].add(file_pair[0])
+
+    return dict(fuzzy_duplicates)
+
 
 def explore_and_find_duplicates(base_path):
-    folder_times = defaultdict(float)
+    folder_times = defaultdict(float)  # To store time taken for each folder
     unique_file_types = defaultdict(lambda: {'types': set(), 'size': 0})
     all_file_info = {}
     exact_duplicates = defaultdict(set)
-    fuzzy_duplicates = defaultdict(set)
-    metadata_info = set()
+    metadata_info = set()  # Use a set to store unique metadata information
     lock = threading.Lock()
 
     def process_files(folder_name, file_paths):
         local_unique_file_types = {}
-        local_metadata_info = set()
+        local_metadata_info = set()  # Store metadata information for this run
         for file_path in file_paths:
             if is_considered_file(file_path):
-                start_time = time.time()
-                file_type, file_size, mime_type, mime_encoding = get_file_info(file_path)
+                print(f"Processing file: {file_path}")
+                try:
+                    start_time = time.time()  # Record start time for each file
+                    file_type, file_size, mime_type, mime_encoding = get_file_info(file_path)
+                    if file_path not in local_unique_file_types:
+                        local_unique_file_types[file_path] = {'types': set(), 'size': 0}
+                    local_unique_file_types[file_path]['types'].add(file_type)
+                    local_unique_file_types[file_path]['size'] += file_size
 
-                if file_type == '.shp' or file_type == '.geojson' or file_type == '.kml':
-                    gdf = ingest_geospatial_data(file_path)
-                    metadata = extract_geospatial_metadata(gdf)
-                    classification = classify_geospatial_data(gdf)
-                    local_metadata_info.add((file_path, os.path.basename(file_path), file_type,
-                                             convert_size(file_size), mime_type, mime_encoding,
-                                             metadata, classification))
-                else:
-                    ingest_non_geospatial_data(file_path)
-                    metadata = extract_non_geospatial_metadata(file_path)
-                    classification = classify_non_geospatial_data(file_path)
-                    local_metadata_info.add((file_path, os.path.basename(file_path), file_type,
-                                             convert_size(file_size), mime_type, mime_encoding,
-                                             metadata, classification))
+                    # Store file info for later duplicate check
+                    all_file_info[file_path] = {'types': set(), 'size': 0}
+                    all_file_info[file_path]['types'].add(file_type)
+                    all_file_info[file_path]['size'] += file_size
 
-                all_file_info[file_path] = {'types': set(), 'size': 0}
-                all_file_info[file_path]['types'].add(file_type)
-                all_file_info[file_path]['size'] += file_size
+                    # Collect metadata information
+                    local_metadata_info.add((file_path, os.path.basename(file_path), file_type, convert_size(file_size), mime_type, mime_encoding))
 
-                local_unique_file_types[file_path] = {'types': set(), 'size': 0}
-                local_unique_file_types[file_path]['types'].add(file_type)
-                local_unique_file_types[file_path]['size'] += file_size
+                    end_time = time.time()  # Record end time for each file
+                    elapsed_time = end_time - start_time
+                    folder_times[folder_name] += elapsed_time
 
-                end_time = time.time()
-                elapsed_time = end_time - start_time
-                folder_times[folder_name] += elapsed_time
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
 
         with lock:
             for file_path, file_info in local_unique_file_types.items():
@@ -135,15 +133,27 @@ def explore_and_find_duplicates(base_path):
                 unique_file_types[file_path]['types'].update(file_info['types'])
                 unique_file_types[file_path]['size'] += file_info['size']
 
+        # Update the global metadata_info with local_metadata_info
         with lock:
             metadata_info.update(local_metadata_info)
 
     def process_folder(folder_path):
-        for root, _, files in os.walk(folder_path):
-            file_paths = [os.path.join(root, file) for file in files]
-            process_files(os.path.basename(root), file_paths)
+        nonlocal unique_file_types
+        start_time = time.time()  # Record start time for each folder
+        try:
+            for root, _, files in os.walk(folder_path):
+                file_paths = [os.path.join(root, file) for file in files]
+                print(f"Processing folder: {root}")
+                process_files(os.path.basename(root), file_paths)
+        except Exception as e:
+            print(f"Error processing folder {folder_path}: {e}")
+
+        end_time = time.time()  # Record end time for each folder
+        elapsed_time = end_time - start_time
+        folder_times[os.path.basename(folder_path)] = elapsed_time
 
     def explore_compressed_folder(folder_path):
+        nonlocal unique_file_types
         for file in os.listdir(folder_path):
             file_path = os.path.join(folder_path, file)
 
@@ -151,10 +161,13 @@ def explore_and_find_duplicates(base_path):
                 print(f"Exploring contents of: {file_path}")
                 extract_folder = os.path.join(folder_path, os.path.splitext(file)[0])
                 extract_archive(file_path, extract_folder)
+                # Now, process the contents of the extracted folder
                 process_folder(extract_folder)
             else:
+                # If it's not a compressed file, process it directly
                 process_folder(file_path)
 
+    # Use maximum number of threads
     num_threads = min(multiprocessing.cpu_count() * 2, 32)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = [
@@ -162,49 +175,30 @@ def explore_and_find_duplicates(base_path):
             executor.submit(process_folder, base_path)
         ]
 
+        # Wait for threads to complete
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()
             except Exception as exc:
                 print(f"Error: {exc}")
 
+        # Ensure all threads are finished before proceeding
         executor.shutdown(wait=True)
 
+    # Parallelize hashing process using maximum number of processes
     with concurrent.futures.ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
         hash_values = list(executor.map(hash_file, all_file_info.keys()))
         all_file_info_hashes = dict(zip(all_file_info.keys(), hash_values))
+    
+    # Find common files using fuzzy matching for file name and size
+    fuzzy_duplicates = process_fuzzy_duplicates(all_file_info)
 
-    processed_files = set()
-    for file_path1, info1 in all_file_info.items():
-        if file_path1 in processed_files:
-            continue
-        current_exact_duplicates = set()
-        current_fuzzy_duplicates = set()
-        for file_path2, info2 in all_file_info.items():
-            if (
-                file_path1 != file_path2 and
-                fuzzy_match(os.path.basename(file_path1), os.path.basename(file_path2), 99) and
-                info1['size'] == info2['size']
-            ):
-                current_exact_duplicates.add(file_path2)
-                processed_files.add(file_path2)
-            elif (
-                file_path1 != file_path2 and
-                fuzzy_match(os.path.basename(file_path1), os.path.basename(file_path2), 80) and
-                info1['size'] == info2['size']
-            ):
-                current_fuzzy_duplicates.add(file_path2)
-                processed_files.add(file_path2)
-
-        if current_exact_duplicates:
-            exact_duplicates[file_path1] = current_exact_duplicates
-        if current_fuzzy_duplicates:
-            fuzzy_duplicates[file_path1] = current_fuzzy_duplicates
-
+    # Create separate DataFrames for exactly same and slightly similar files
     columns = ['File1', 'File2', 'ContentMatch', 'File1Name', 'File2Name']
     df_exact = pd.DataFrame(columns=columns)
     df_fuzzy = pd.DataFrame(columns=columns)
 
+    # Populate DataFrames
     for file_path1, duplicate_addresses in exact_duplicates.items():
         for file_path2 in duplicate_addresses:
             hash1 = all_file_info_hashes[file_path1]
@@ -231,87 +225,49 @@ def explore_and_find_duplicates(base_path):
                 'ContentMatch': [content_match],
             })], ignore_index=True)
 
-    metadata_df = pd.DataFrame(metadata_info, columns=['File', 'File Name', 'File Type', 'File Size', 'MIME Type', 'MIME Encoding', 'Metadata', 'Classification'])
+    # Print metadata information
+    metadata_df = pd.DataFrame(metadata_info, columns=['File', 'File Name', 'File Type', 'File Size', 'MIME Type', 'MIME Encoding'])
     metadata_excel_filename = "metadata.xlsx"
     metadata_df.to_excel(metadata_excel_filename, index=False)
     print(f"\nMetadata DataFrame saved to {metadata_excel_filename}")
 
+    # Print exactly duplicated files
     print("\nExactly Same Files:")
     if not df_exact.empty:
         print(df_exact)
     else:
         print("No exactly same files found.")
 
+    # Print slightly similar files
     print("\nSlightly Similar Files:")
     if not df_fuzzy.empty:
         print(df_fuzzy)
     else:
         print("No slightly similar files found.")
 
+    # Save the DataFrames to Excel files
     excel_exact_filename = "exact_duplicates.xlsx"
     excel_fuzzy_filename = "fuzzy_duplicates.xlsx"
-    siamese_dataset_excel_filename = "siamese_dataset.xlsx"
 
     df_exact.to_excel(excel_exact_filename, index=False)
     df_fuzzy.to_excel(excel_fuzzy_filename, index=False)
 
-    siamese_dataset = pd.DataFrame(columns=['File1Name', 'File2Name', 'HashFile1', 'HashFile2', 'Match'])
-
-    for file_path1, duplicate_addresses in exact_duplicates.items():
-        for file_path2 in duplicate_addresses:
-            hash1 = all_file_info_hashes[file_path1]
-            hash2 = all_file_info_hashes[file_path2]
-            content_match = hash1 == hash2
-            siamese_dataset = pd.concat([siamese_dataset, pd.DataFrame({
-                'File1Name': [os.path.basename(file_path1)] * len(duplicate_addresses),
-                'File2Name': [os.path.basename(file_path2)] * len(duplicate_addresses),
-                'HashFile1': [hash1] * len(duplicate_addresses),
-                'HashFile2': [hash2] * len(duplicate_addresses),
-                'Match': [int(content_match)] * len(duplicate_addresses),
-            })], ignore_index=True)
-
-    for file_path1, duplicate_addresses in fuzzy_duplicates.items():
-        for file_path2 in duplicate_addresses:
-            hash1 = all_file_info_hashes[file_path1]
-            hash2 = all_file_info_hashes[file_path2]
-            content_match = hash1 == hash2
-            siamese_dataset = pd.concat([siamese_dataset, pd.DataFrame({
-                'File1Name': [os.path.basename(file_path1)],
-                'File2Name': [os.path.basename(file_path2)],
-                'HashFile1': [hash1],
-                'HashFile2': [hash2],
-                'Match': [int(content_match)],
-            })], ignore_index=True)
-
-    siamese_dataset.to_excel(siamese_dataset_excel_filename, index=False)
-
     print(f"\nExactly Same Files DataFrame saved to {excel_exact_filename}")
     print(f"\nSlightly Similar Files DataFrame saved to {excel_fuzzy_filename}")
-    print(f"\nSiamese Dataset saved to {siamese_dataset_excel_filename}")
 
     end_time2 = time.time()
     elapsed_time2 = end_time2 - start_time2
 
-    folder_names = list(folder_times.keys())
-    times = list(folder_times.values())
-
-    plt.figure(figsize=(15, 8))
-    plt.bar(folder_names, times, color='blue')
-    plt.title(f'Time Taken for Each Folder and overall time taken is : {elapsed_time2}')
-    plt.xlabel('Folder Name')
-    plt.ylabel('Time (seconds)')
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    plt.show()
-
-    end_time1 = time.time()
-    elapsed_time1 = end_time1 - start_time1
-
-    print(f"\nTotal execution time: {elapsed_time1} seconds")
+    # Print the overall elapsed time
+    print(f"\nTotal execution time: {elapsed_time2} seconds")
 
 if __name__ == "__main__":
-    base_path = r"D:\adhvik\adh\Hackathon\space hack\finals data\Topic-1\Geospatial Data Mangement"
-    start_time1 = time.time()
+    base_path = r"D:\adhvik\adh\Hackathon\space hack\finals data"
+    #D:\adhvik\adh\Hackathon\space hack\Data RR\data Set\topic12\dataset1
+    #D:\adhvik\adh\Hackathon\space hack\zip
+    #D:\adhvik\adh\Hackathon\space hack\finals data\Topic-1\Geospatial Data Mangement
+    #D:\adhvik\adh\Hackathon\space hack\siamese data lu lc\Sen-2 LULC\train_images\train
+    # Start the timer
     start_time2 = time.time()
     print("Timer started")
     explore_and_find_duplicates(base_path)

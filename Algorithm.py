@@ -154,7 +154,8 @@ def explore_and_find_duplicates(base_path):
     with concurrent.futures.ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
         hash_values = list(executor.map(hash_file, all_file_info.keys()))
         all_file_info_hashes = dict(zip(all_file_info.keys(), hash_values))
-
+    
+    #
     # Find common files using fuzzy matching for file name and size
     processed_files = set()  # To keep track of processed files
     for file_path1, info1 in all_file_info.items():
@@ -259,7 +260,7 @@ if __name__ == "__main__":
     #D:\adhvik\adh\Hackathon\space hack\Data RR\data Set\topic12\dataset1
     #D:\adhvik\adh\Hackathon\space hack\zip
     #D:\adhvik\adh\Hackathon\space hack\finals data\Topic-1\Geospatial Data Mangement
-    #D:\adhvik\adh\Hackathon\space hack\siamese data lulc\Sen-2 LULC\train_images\train
+    #D:\adhvik\adh\Hackathon\space hack\siamese data lu lc\Sen-2 LULC\train_images\train
     # Start the timer
     start_time2 = time.time()
     print("Timer started")
