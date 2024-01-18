@@ -24,8 +24,6 @@ for feature in geojson_data['features']:
 # Perform clustering for each state
 for state, coordinates in state_coordinates.items():
     X = np.array(coordinates)
-
-    # Standardize the data (optional but can be helpful for K-Means)
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 

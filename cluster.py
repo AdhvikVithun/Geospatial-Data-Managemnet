@@ -1,55 +1,64 @@
-import json
 import numpy as np
+import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import folium
 from folium.plugins import MarkerCluster
+from geopy.geocoders import Nominatim
 
-# Load GeoJSON data from file
-with open('geojson1.geojson', 'r') as file:
-    geojson_data = json.load(file)
+# Load latitude and longitude data from Excel file
+df = pd.read_excel('output_data_merged.xlsx')
 
-# Create a dictionary to store coordinates for each state
-state_coordinates = {}
+# Extract latitude and longitude columns
+coordinates = df[['Latitude', 'Longitude']].values[:10000]  # Use the first 10,000 rows
 
-# Extract coordinates from GeoJSON features
-for feature in geojson_data['features']:
-    state = feature['properties']['state']
-    lat = feature['geometry']['coordinates'][0]
-    long = feature['geometry']['coordinates'][1]
+# Standardize the data (optional but can be helpful for K-Means)
+scaler = StandardScaler()
+coordinates_scaled = scaler.fit_transform(coordinates)
 
-    # Add coordinates to the state in the dictionary
-    if state not in state_coordinates:
-        state_coordinates[state] = []
-    state_coordinates[state].append([lat, long])
+# Define the number of clusters (you can adjust this based on your preference)
+num_clusters = 28
+
+# Explicitly set n_init and algorithm to potentially improve speed
+kmeans = KMeans(n_clusters=num_clusters, n_init=10, algorithm='elkan', random_state=42)
+clusters = kmeans.fit_predict(coordinates_scaled)
 
 # Create a folium map centered at the first coordinate
-center_lat, center_long = state_coordinates[list(state_coordinates.keys())[0]][0]
+center_lat, center_long = coordinates[0]
 map_clusters = folium.Map(location=[center_lat, center_long], zoom_start=6)
 
-# Create a MarkerCluster for each state
-for state, coordinates in state_coordinates.items():
-    marker_cluster = MarkerCluster().add_to(map_clusters)
+# Create a MarkerCluster for each cluster
+marker_cluster = MarkerCluster().add_to(map_clusters)
 
-    X = np.array(coordinates)
-
-    # Standardize the data (optional but can be helpful for K-Means)
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # Define the number of clusters (you can adjust this based on your preference)
-    num_clusters = 3
-
-    kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-    clusters = kmeans.fit_predict(X_scaled)
-
-    # Add markers to the MarkerCluster for each feature in the state
-    for i, feature in enumerate(geojson_data['features']):
-        if feature['properties']['state'] == state and i < len(clusters):  # index within bounds
-            cluster = int(clusters[i])
-            lat, long = feature['geometry']['coordinates'][0], feature['geometry']['coordinates'][1]
-            folium.Marker([lat, long], popup=f'Cluster: {cluster}', icon=folium.Icon(color=f'lightblue')).add_to(marker_cluster)
-
+# Add markers to the MarkerCluster for each data point with cluster information
+for i in range(len(clusters)):
+    lat, long = coordinates[i]
+    cluster_label = f'Lat: {lat}, Long: {long}'
+    
+    folium.Marker([lat, long], popup=cluster_label, 
+                  icon=folium.Icon(color=f'lightblue')).add_to(marker_cluster)
 
 map_clusters.save('cluster_map.html')
 print("Clustering completed. Map saved to cluster_map.html")
+
+# Reverse geocode to get state information for each cluster
+geolocator = Nominatim(user_agent="geo_locator")
+state_info = []
+
+for i in range(num_clusters):
+    cluster_indices = np.where(clusters == i)[0]
+    cluster_data = df.iloc[cluster_indices]
+    
+    center_lat, center_long = cluster_data[['Latitude', 'Longitude']].mean()
+    location = geolocator.reverse((center_lat, center_long), language='en')
+    
+    # Check if geocoding was successful before accessing attributes
+    if location and hasattr(location, 'raw') and 'address' in location.raw and 'state' in location.raw['address']:
+        state = location.raw['address']['state']
+    else:
+        state = None
+    
+    state_info.append({'Cluster': i, 'State': state})
+
+state_df = pd.DataFrame(state_info)
+print(state_df)
