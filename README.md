@@ -1,3 +1,10 @@
+GeoSpatial Data Management:
+there are 2 parts in this:
+1) Data redundancy removal
+2) Geospatial indexing system
+
+Part I :
+
 Data Redundancy Identification / Removal Algorithm
 
 This project is done to solve real world problem of finding duplicate , unecessory files.
@@ -86,3 +93,6 @@ Upon clicking the "Find Duplicates" button, the script processes the data and pr
 Note:
 
 This script provides a versatile tool for identifying redundant files in a specified directory and offers an intuitive web interface for users to interact with the results.
+
+
+Part II:(Will document it soom)
