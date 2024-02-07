@@ -78,14 +78,6 @@ Time:
 ![Time ver 2](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/807326e8-2a2b-4eeb-8ecc-d28adcb26f0d)
 
 
-Notes for GitHub:
-
-Make sure to include relevant dependencies (e.g., fuzzywuzzy, pandas) in your requirements.txt or environment.yml file.
-Provide clear documentation, a README file explaining how to use the script, and any prerequisites.
-Consider adding comments to critical sections of the code to enhance readability.
-Ensure that sensitive information, such as file paths, is properly handled (consider using configuration files or command-line arguments).
-Include license information in your repository.
-
 Usage:
 
 Users can input the base path via the Streamlit web app.
