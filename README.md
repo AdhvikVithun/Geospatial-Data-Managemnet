@@ -76,7 +76,7 @@ Time:
 
 
 ![Time ver 2](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/807326e8-2a2b-4eeb-8ecc-d28adcb26f0d)
-
+The Time was further reduced to 3sec!!
 
 Usage:
 
