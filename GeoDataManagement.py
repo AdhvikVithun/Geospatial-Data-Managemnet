@@ -15,6 +15,9 @@ import streamlit as st
 from sklearn.cluster import KMeans
 from rtree import index
 import joblib
+from shapely.geometry import Point
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 # Global variable to store results
 results = None
@@ -30,20 +33,50 @@ def find_nearest_files(latitude, longitude, df, spatial_index):
     return nearest_files
 
 
+#to get this file use GeoDataExtract.py and mergedata.py 
+df = pd.read_excel('dataoutfiles/output_data_merged.xlsx')
+ # Extract latitude and longitude columns
+coordinates = df[['Latitude', 'Longitude']].values
 
-def geographical_clustering(df, spatial_index):
-    st.title("Geographical Clustering")
+ # Standardize the data (optional but can be helpful for K-Means)
+scaler = StandardScaler()
+coordinates_scaled = scaler.fit_transform(coordinates)
 
-    # User input for latitude and longitude
-    query_latitude = st.number_input("Enter Latitude:", min_value=-90.0, max_value=90.0, step=0.01)
-    query_longitude = st.number_input("Enter Longitude:", min_value=-180.0, max_value=180.0, step=0.01)
+# Define the number of clusters (you can adjust this based on your preference)
+num_clusters = 34
 
-    # Find nearest files based on user input
-    nearest_files = find_nearest_files(query_latitude, query_longitude, df, spatial_index)
+ # Explicitly set n_init and algorithm to potentially improve speed
+kmeans = KMeans(n_clusters=num_clusters, n_init=10, algorithm='elkan', random_state=42)
+clusters = kmeans.fit_predict(coordinates_scaled)
 
-    # Display results
-    st.write("Nearest Files:")
-    st.write(nearest_files)
+# Create Shapely geometry objects
+df['geometry'] = [Point(xy) for xy in zip(df['Longitude'], df['Latitude'])]
+
+ # Create R-Tree index
+idx = index.Index()
+for i, row in df.iterrows():
+    idx.insert(i, row['geometry'].bounds)
+
+# Build catalog system
+catalog = df.groupby(['Latitude', 'Longitude'])['File'].apply(list).to_dict()
+
+   
+
+# Function to query GIS files based on coordinates
+def query_files(query_latitude, query_longitude):
+    
+        query_point = Point(query_longitude, query_latitude)
+        possible_matches = list(idx.intersection(query_point.bounds))
+        files = []
+
+        # Check for potential matches and add files to the result
+        for i in possible_matches:
+            if df.loc[i, 'geometry'].contains(query_point):
+                files.extend(catalog.get((df.loc[i, 'Latitude'], df.loc[i, 'Longitude']), []))
+                
+        
+        return files
+
     
 def fuzzy_match(file_name1, file_name2, threshold):
     return fuzz.ratio(file_name1, file_name2) > threshold
@@ -286,15 +319,22 @@ if __name__ == "__main__":
     # Add a big bold heading for geo-spatial indexing
     st.markdown("<h1 style='text-align: center; color: #009688;'>GEO-SPATIAL INDEXING</h1>", unsafe_allow_html=True)
 
-    # Add a button for geographical clustering
-    if st.button("Geographical Clustering"):
+     #Add a button for geographical clustering
+    #if st.button("Geographical Clustering"):
+        
+
+        # User input for latitude and longitude
+    query_latitude = st.number_input("Enter Latitude:" , step=0.0001)
+    query_longitude = st.number_input("Enter Longitude:" , step=0.0001)
+    
+    if st.button("Geo Data Cluster"):
         st.text("Performing Geographical Clustering... Please wait.")
 
-        #
         # Display results
         st.write("Geo Files:")
-        st.write(find_nearest_files)
-
+        results = query_files(query_latitude, query_longitude)
+        st.write(results)
         # Add a link to the specified URL on the right side
         st.markdown("<hr>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: right;'><a href='https://uploadnow.io/f/rqCLcJd' target='_blank'>Download Geo Data</a></p>", unsafe_allow_html=True)
+        

@@ -6,7 +6,7 @@ from rtree import index
 from shapely.geometry import Point
 
 # Load latitude and longitude data from Excel file
-df = pd.read_excel('D:/adhvik/adh/Hackathon/space hack/Data RR/hack code/testcluster.xlsx')
+df = pd.read_excel('dataoutfiles/output_data_merged.xlsx')
 
 # Extract latitude and longitude columns
 coordinates = df[['Latitude', 'Longitude']].values
@@ -31,21 +31,20 @@ for i, row in df.iterrows():
     idx.insert(i, row['geometry'].bounds)
 
 # Build catalog system
-catalog = df.groupby('State')['File'].apply(list).to_dict()
+catalog = df.groupby(['Latitude', 'Longitude'])['File'].apply(list).to_dict()
 
 # Function to query GIS files based on coordinates
 def query_files(query_latitude, query_longitude):
     query_point = Point(query_longitude, query_latitude)
     possible_matches = list(idx.intersection(query_point.bounds))
-    state = None
+    files = []
 
-    # Use R-Tree to find the state for the query coordinates
+    # Check for potential matches and add files to the result
     for i in possible_matches:
         if df.loc[i, 'geometry'].contains(query_point):
-            state = df.loc[i, 'State']
-            break
+            files.extend(catalog.get((df.loc[i, 'Latitude'], df.loc[i, 'Longitude']), []))
 
-    return catalog.get(state, [])
+    return files
 
 # Example query
 query_latitude = 33.3731

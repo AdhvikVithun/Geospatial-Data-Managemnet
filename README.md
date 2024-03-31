@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Data Redundancy Identification / Removal Algorithm
 
 This project is done to solve real world problem of finding duplicate , unecessory files.
@@ -86,3 +87,95 @@ Upon clicking the "Find Duplicates" button, the script processes the data and pr
 Note:
 
 This script provides a versatile tool for identifying redundant files in a specified directory and offers an intuitive web interface for users to interact with the results.
+=======
+GeoSpatial Data Management:
+there are 2 parts in this:
+1) Data redundancy removal
+2) Geospatial indexing system
+
+Part I :
+
+Data Redundancy Identification / Removal Algorithm
+
+This project is done to solve real world problem of finding duplicate , unecessory files.
+
+So this is how the Code works.
+
+![sysarcpic ver final 2](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/97b1f2b6-c533-49eb-83ba-78f0b9dec312)
+
+
+This Python script is designed for Data Redundancy Removal / Identification. The script performs the following tasks:
+
+Import Libraries:
+
+os: Provides a way to interact with the operating system, such as reading file paths and checking file existence.
+zipfile and tarfile: Used for extracting contents from zip and tar archives, respectively.
+fuzzywuzzy: A library for fuzzy string matching, used here for comparing file names.
+collections.defaultdict: A dictionary with default values, used to store file type information.
+threading and concurrent.futures: Used for parallel processing of files and folders.
+hashlib: Provides hashing algorithms for creating checksums.
+pandas: A powerful data manipulation library.
+mimetypes: Provides functions to guess the MIME type of a file.
+time: Used to measure the execution time.
+multiprocessing: Allows parallel processing using multiple processes.
+
+
+Helper Functions:
+
+fuzzy_match: Determines if two strings are similar based on a threshold.
+get_file_info: Retrieves information about a file, such as extension, size, MIME type, and encoding.
+is_considered_file: Checks if a given path points to a file.
+convert_size: Converts file size to a human-readable format.
+extract_archive: Extracts contents from supported archive types (zip and tar).
+hash_file: Calculates the MD5 hash of a file.
+
+
+Main Function (explore_and_find_duplicates):
+
+Uses multithreading to explore the base folder and identify file types and sizes.
+Extracts contents from compressed folders (e.g., zip, tar) and explores them.
+Uses multiprocessing to parallelize the hashing process.
+Compares files for exact and fuzzy duplicates based on file names and sizes.
+Generates DataFrames for exact and fuzzy duplicates.
+Prints metadata information about files.
+Saves DataFrames and metadata information to Excel files.
+Measures the execution time.
+
+
+Streamlit Integration:
+
+The script uses Streamlit to create a simple web app.
+The title and an input field for the base path are displayed.
+Upon clicking the "Find Duplicates" button, the explore_and_find_duplicates function is called, and the results are displayed using Streamlit's components.
+
+Results Display:
+
+Streamlit components (st.title, st.text_input, st.button, st.text, st.dataframe, st.pyplot) are used to display results and create interactive visualizations.
+The exactly same and slightly similar files, along with metadata information, are presented in a tabular format.
+A bar chart is created using Matplotlib and displayed to visualizethe processing time for each folder with and without parallel processing.
+
+![front](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/60d9cb60-9d02-4809-b6c3-f4cb08a889d3)
+
+![Part 1](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/8affc244-29ac-454c-8f17-290108e14f2c)
+
+![Part 2](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/a597ad58-ab9c-4567-a673-109975f489b9)
+
+
+
+Time: 
+
+
+![Time ver 2](https://github.com/AdhvikVithun/Space-Hack/assets/148479685/807326e8-2a2b-4eeb-8ecc-d28adcb26f0d)
+The Time was further reduced to 3sec!!
+
+Usage:
+
+Users can input the base path via the Streamlit web app.
+Upon clicking the "Find Duplicates" button, the script processes the data and presents results interactively through the Streamlit interface.
+Note:
+
+This script provides a versatile tool for identifying redundant files in a specified directory and offers an intuitive web interface for users to interact with the results.
+
+
+Part II:(Will document it soom)
+>>>>>>> 5a8eb8981ca3e290103237b20a34ef7798eda10e
